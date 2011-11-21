@@ -1,0 +1,11 @@
+LambdaPi
+
+A Lisp-based operating system for the Raspberry Pi single board computer.
+
+To build, you'll need an arm-none-eabi toolchain (gnu binutils and gcc).
+Building should be a simple case of running "make" in the top level.
+
+Debugging under qemu is possible, assuming you have a build of qemu-0.15
+and gdb compiled for arm-none-eabi.  Use debug.sh from the top level and
+you should be dropped into gdb already connected to qemu runing the image.
+(Sorry, I like TUI in gdb, but you can change that in the supplied gdbinit)
