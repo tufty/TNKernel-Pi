@@ -27,6 +27,7 @@
 /* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING  IN ANY WAY OUT OF THE USE */
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.           */
 
+.include "macros.inc"
 
   .equ    MC_FMR,    0xFFFFFF60
   .equ    WDT_MR,    0xFFFFFD44
@@ -39,15 +40,6 @@
   .equ    NOINT,     0xc0
 
 
-  .text
-  .code 32
-  .align 0
-
-  .extern _reset
-  .global tn_startup_hardware_init
-  .global tn_arm_disable_interrupts
-  .global tn_arm_enable_interrupts
-
 /*----------------------------------------------------------------------------
 //  This routine is called immediately after reset to setup hardware that is
 // vital for processor's functionality (for instance,SDRAM controller setup,
@@ -56,13 +48,10 @@
 // by C-language function call.
 //----------------------------------------------------------------------------*/
 
-tn_startup_hardware_init:
-
-     bx   lr
-
+	
 /*----------------------------------------------------------------------------*/
 
-tn_arm_disable_interrupts:
+FUNC	tn_arm_disable_interrupts
 
      mrs  r0, cpsr
      orr  r0, r0, #NOINT
@@ -73,7 +62,7 @@ tn_arm_disable_interrupts:
 
 /*----------------------------------------------------------------------------*/
 
-tn_arm_enable_interrupts:
+FUNC	tn_arm_enable_interrupts
 
      mrs  r0, cpsr
      bic  r0, r0, #NOINT
