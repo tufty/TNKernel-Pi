@@ -5,7 +5,7 @@ LD = ${ARCH}-ld
 AR = ${ARCH}-ar
 OBJCOPY = ${ARCH}-objcopy
 
-CFLAGS = -Os -std=c99 -Werror -g -DTNKERNEL_PORT_ARM
+CFLAGS = -O0 -std=c99 -Werror -g -DTNKERNEL_PORT_ARM
 CFLAGS_FOR_TARGET = -mcpu=arm1176jzf-s
 ASFLAGS = -g
 ASFLAGS_FOR_TARGET = -mcpu=arm1176jzf-s

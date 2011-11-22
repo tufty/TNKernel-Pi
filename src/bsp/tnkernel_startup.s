@@ -27,48 +27,23 @@
 /* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING	IN ANY WAY OUT OF THE USE */
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.		  */
 
-.include "macros.inc"
+.include "../lib/macros.inc"
 
-    .equ MODE_BITS,   0x1F		 /* Bit mask for mode bits in CPSR */
-    .equ USR_MODE,    0x10		 /* User mode */
-    .equ FIQ_MODE,    0x11		 /* Fast Interrupt Request mode */
-    .equ IRQ_MODE,    0x12		 /* Interrupt Request mode */
-    .equ SVC_MODE,    0x13		 /* Supervisor mode */
-    .equ ABT_MODE,    0x17		 /* Abort mode */
-    .equ UND_MODE,    0x1B		 /* Undefined Instruction mode */
-    .equ SYS_MODE,    0x1F		 /* System mode */
-
-
-    .section	.reset, "ax"
-    .global  __reset
-    .code 32
-__reset:
-	b	_reset
-	b	.				/* undef_handler not defined */
-	b	.				/* swi_handler */
-	b	.				/* pabort_handler */
-	b	.				/* dabort_handler */
-	b	.
-	b	tn_cpu_irq_isr
-	b 	tn_cpu_fiq_isr
-
-	.ascii "©2011 Simon Stapleton <simon.stapleton@gmail.com>"
-	.align
-	.ascii "Kernel derived from TNKernel (http://www.tnkernel.com)"
-	.align
-	.ascii "Contains elements derived from the FreeBSD project (http://www.freebsd.org)"
-	.align
-	.ascii "In memory of John McCarthy, Sep 4, 1927 - Oct 24, 2011."
-	.align
+.equ MODE_BITS,   0x1F		 /* Bit mask for mode bits in CPSR */
+.equ USR_MODE,    0x10		 /* User mode */
+.equ FIQ_MODE,    0x11		 /* Fast Interrupt Request mode */
+.equ IRQ_MODE,    0x12		 /* Interrupt Request mode */
+.equ SVC_MODE,    0x13		 /* Supervisor mode */
+.equ ABT_MODE,    0x17		 /* Abort mode */
+.equ UND_MODE,    0x1B		 /* Undefined Instruction mode */
+.equ SYS_MODE,    0x1F		 /* System mode */
 
  /*--- Start */
 
 FUNC	_reset
 	/* Do any hardware intialisation that absolutely must be done first */
-	/* No stack set up at this point - be careful */ 
-	ldr	r0, tn_startup_hardware_init	/* vital hardware init */
-	mov	lr, pc
-	bx	r0
+	/* No stack set up at this point - be careful */
+	bl	tn_startup_hardware_init
 
 	/* Assume that at this point, __memtop and __system_ram are populated
 	
@@ -95,13 +70,13 @@ FUNC	_reset
 	/*-- Leave core in SVC mode ! */
 
 
- .extern     __bss_start
+ .extern     __bss_start__
  .extern     __bss_end__
 
      /* ----- Clear BSS (zero init) */
 
 	mov   r0,#0
-	ldr   r1,=__bss_start
+	ldr   r1,=__bss_start__
 	ldr   r2,=__bss_end__
 2:	cmp   r1,r2
 	strlo r0,[r1],#4
@@ -125,7 +100,16 @@ FUNC	_reset
 
 b	_reset
 
+/* This tries to work out how much memory we have available 	 */
 FUNC	tn_startup_hardware_init
+
+	/* patch in temporary fault handler */
+	ldr	r3, =.Ldaha
+	ldr	r3, [r3]
+	ldr	r4, [r3]
+	ldr	r5, =temp_abort_handler
+	str	r5, [r3] 
+	DMB	r12
 
 	/* Try and work out how much memory we have */
 	ldr	r0, __memtop
@@ -143,11 +127,27 @@ FUNC	tn_startup_hardware_init
 	b	.Lmem_check
 .Lmem_done:
 	ldr	r0, __memtop		/* get final memory size */
-	lsr	r0, #14			/* Get number of megabytes */
+	lsr	r0, #0x14		/* Get number of megabytes */
 	str	r0, __system_ram	/* And store it */
+	
+	/* unpatch handlers */
+	str	r4, [r3]
+	DMB	r12
 
 	bx	lr
+.Ldaha:
+.word	data_abort_handler_address
 
+/* temporary data abort handler that sets r2 to zero */
+/* this will force the "normal" check to work in the */
+/* case (as, I believe, on RasPi) where access 'out  */
+/* of bounds' causes a page fault                    */
+
+temp_abort_handler:
+	mov	r2, #0x00000000
+	sub	lr, lr, #0x08
+	movs	pc, lr
+	
 
 
 /*--------------------------  */
@@ -158,10 +158,10 @@ FUNC	tn_startup_hardware_init
 
 .global	__memtop
 __memtop:
-	.word	0x08000000		/* Assume memory top at 128MB - valid? */
+	.word	0x00400000		/* Start checking memory from 4MB */
 .global	__mem_page_size
 __mem_page_size:
-	.word	0x00100000		/* Scan in 1MB blocks */
+	.word	0x00100000		/* Scan 1MB blocks */
 .global	__system_ram
 __system_ram:
 	.word	0x00000000		/* System memory in MB */

@@ -27,7 +27,7 @@
 /* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING  IN ANY WAY OUT OF THE USE */
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.           */
 
-.include "macros.inc"
+.include "../lib/macros.inc"
 
   .equ    MC_FMR,    0xFFFFFF60
   .equ    WDT_MR,    0xFFFFFD44
@@ -39,14 +39,6 @@
 
   .equ    NOINT,     0xc0
 
-
-/*----------------------------------------------------------------------------
-//  This routine is called immediately after reset to setup hardware that is
-// vital for processor's functionality (for instance,SDRAM controller setup,
-// PLL setup,etc.)
-//  It is assumed that other hardware's init routine(s) will be invoked later
-// by C-language function call.
-//----------------------------------------------------------------------------*/
 
 	
 /*----------------------------------------------------------------------------*/
