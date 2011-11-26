@@ -46,59 +46,62 @@ FUNC	_reset
 	bl	tn_startup_hardware_init
 
 	/* Assume that at this point, __memtop and __system_ram are populated
+	/* Let's get on with initialising our stacks */
 	
-	
-    /*---- init stacks */
+	/* For the moment we'll work with the TNKernel/ARM assumption that */
+	/* we only ever use SVC, IRQ and maybe FIQ */
 
 	mrs	r0, cpsr			/* Original PSR value */
-
+	ldr	r1, __memtop			/* Top of memory */
+	
 	bic	r0, r0, #MODE_BITS		/* Clear the mode bits */
 	orr	r0, r0, #IRQ_MODE		/* Set IRQ mode bits */
 	msr	cpsr_c, r0			/* Change the mode */
-	ldr    sp, __memtop		/* End of IRQ_STACK */
+	mov	sp, r1				/* End of IRQ_STACK */
+	
+	/* Subtract IRQ stack size */
+	ldr	r2, __irq_stack_size
+	sbc	r1, r1, r2
 
 	bic    r0, r0, #MODE_BITS		/* Clear the mode bits */
 	orr    r0, r0, #FIQ_MODE		/* Set FIQ mode bits */
 	msr    cpsr_c, r0			/* Change the mode   */
-	ldr    sp, __memtop		/* End of FIQ_STACK  */
+	mov    sp, r1				/* End of FIQ_STACK  */
+	
+	/* Subtract IRQ stack size */
+	ldr	r2, __fiq_stack_size
+	sbc	r1, r1, r2
 
 	bic    r0, r0, #MODE_BITS		/* Clear the mode bits */
 	orr    r0, r0, #SVC_MODE		/* Set Supervisor mode bits */
 	msr    cpsr_c, r0			/* Change the mode */
-	ldr    sp, __memtop			/* End of stack */
-
+	mov    sp, r2				/* End of stack */
+	
+	/* And finally subtract Kernel stack size to get final __memtop */
+	ldr	r2, __kern_stack_size
+	sbc	r1, r1, r2
+	str	r1, __memtop
+	
 	/*-- Leave core in SVC mode ! */
-
-
- .extern     __bss_start__
- .extern     __bss_end__
-
-     /* ----- Clear BSS (zero init) */
-
-	mov   r0,#0
-	ldr   r1,=__bss_start__
-	ldr   r2,=__bss_end__
-2:	cmp   r1,r2
-	strlo r0,[r1],#4
-	blo   2b
-
-
-   /*----  */
-
-	.extern	  main
-
-
-    /*	goto main() */
+	
+	/* Zero the memory in the .bss section.  */
+	mov 	a2, #0			/* Second arg: fill value */
+	mov	fp, a2			/* Null frame pointer */
+	
+	ldr	a1, .Lbss_start		/* First arg: start of memory block */
+	ldr	a3, .Lbss_end	
+	sub	a3, a3, a1		/* Third arg: length of block */
+	bl	memset
 
 	mov r0, #0
 	mov r1, #0
-	ldr r2, =main
-	mov	lr, pc
-	bx	r2
+	ldr r2, .Lmain
+        mov     lr, pc
+        bx      r2
 
-/*--- Return from main - reset. */
-
-b	_reset
+	/*--- Return from main - reset. */
+	/* We should never get here */
+	b	_reset
 
 /* This tries to work out how much memory we have available 	 */
 FUNC	tn_startup_hardware_init
@@ -148,23 +151,29 @@ temp_abort_handler:
 	sub	lr, lr, #0x08
 	movs	pc, lr
 	
-
-
-/*--------------------------  */
-
 /* Variables (hopefully) provided by the linker */
+
+.Lbss_start:		.word	__bss_start__
+.Lbss_end:		.word	__bss_end__
+.Lmain:			.word	main
 
 /* Defaulted variables */
 
+/* These ones are exposed to C */
 .global	__memtop
-__memtop:
-	.word	0x00400000		/* Start checking memory from 4MB */
-.global	__mem_page_size
-__mem_page_size:
-	.word	0x00100000		/* Scan 1MB blocks */
+__memtop:		.word	0x00400000		/* Start checking memory from 4MB */
 .global	__system_ram
-__system_ram:
-	.word	0x00000000		/* System memory in MB */
+__system_ram:		.word	0x00000000		/* System memory in MB */
+.global	__heap_start
+__heap_start:		.word	__bss_end__		/* Start of the dynamic heap */
 
-
+/* These ones are global but not exposed in header files */
+.global	__mem_page_size
+__mem_page_size:	.word	0x00100000		/* Scan 1MB blocks */
+.global __irq_stack_size
+__irq_stack_size:	.word	0x000000ff		/* Stack size for IRQ in bytes */
+.global __fiq_stack_size
+__fiq_stack_size:	.word	0x000000ff		/* Stack size for FIQ in bytes */
+.global __kern_stack_size
+__kern_stack_size:	.word	0x000000ff		/* Stack size for Kernel in bytes */
 

@@ -57,7 +57,7 @@ undef_handler_address:		.word	__undef
 swi_handler_address:		.word	__swi
 prefetch_abort_handler_address:	.word	__prefetch_abort
 data_abort_handler_address:	.word	__data_abort
-irq_handler_address:		.word	tn_cpu_irq_isr
+irq_handler_address:		.word	tn_cpu_irq_isr_reent
 fiq_handler_address:		.word	tn_cpu_fiq_isr
 
 /* Make globals to allow remappings */

@@ -141,43 +141,53 @@ tn_sw_restore:
 
 /* Now reentrant, adapted from ARM example code */
 tn_cpu_irq_isr_reent:
-	sub	lr, lr, #4	/* Save actual return address */
-	srsdb	sp!, #SYSMODE	/* Save LR_irq and SPSR_irq to system mode stack */
-	cps	#SYSMODE	/* Go to system mode */
-	push	{r0-r12}	/* save registers
+	sub	lr, lr, #4	/* Save adjusted LR_IRQ */
+	srsdb	sp!, #SYSMODE	/* save LR_irq and SPSR_irq to system mode stack */
 	
-	and	r1, sp, #4	/* Align stack */
-	sub	sp, sp, r1
-	push	{r1, lr}	/* And profit for saving lr */
+	cps	#SYSMODE	/* Go to system mode */
+	push	{r0-r12}	/* Save registers */
+	
+	and	r0, sp, #4	/* align the stack and save adjustment with LR_user */
+	sub	sp, sp, r0
+	push	{r0, lr}
 	
 	/* Identify and clear interrupt source */
 	/* Should return handler address in r0 */
 	bl	tn_cpu_identify_and_clear_irq
 	
+	cmp	r0, #0
 	cpsie	i		/* enable interrupts */
-	bl	r0		/* go handle our interrupt */
+	blne	r0		/* go handle our interrupt if we have a handler*/
 	cpsid	i		/* disable interrupts again */
 
-	/* Check for context switch */
-	ldr	r0, =tn_curr_run_task
-	ldr	r1, [r0]
-	ldr	r0, =tn_next_task_to_run
-	ldr	r2, [r0]
-	cmp	r1, r2
-	bne	tn_int_ctx_switch_reent
-
-	pop	{r1, lr}	/* restore lr and sp */
-	add	sp, sp, r1
+	/* Decide if we need to do a context switch */
+	ldr	r0,  =tn_curr_run_task  /*  context switch ? */
+	ldr	r1,  [r0]
+	ldr	r0,  =tn_next_task_to_run
+	ldr	r2,  [r0]
+	cmp	r1,  r2	
 	
-	pop	{r0-r12}	/* restore registers */
-	rfeia	sp!		/* and exit */
+	/* At this point we have everything we need on the sysmode (user) stack	*/
+	/* {stack adjust, lr}_user, {r0-r12}_user, {SPSR, LR}_irq 		*/
+	/* Save our stack pointer, and swap in the new one before returning	*/
 
-tn_int_ctx_switch_reent:
-	/* We have all registers saved in System mode stack */
-	pop	{r1, lr}	/* restore lr and stack pointer */
-	add	sp, sp, r1
-	pop	{r0-r12}	/* and get all our registers */	
-	/* TODO */
+	ldrne	r0, =tn_curr_run_task	/* save current stack pointer */
+	ldrne	r0, [r0]
+	strne	sp, [r0]
+	
+	ldrne	r0,  =tn_next_task_to_run	/* swap out the task */
+	ldrne	r2,  [r0]
+	ldrne	r0,  =tn_curr_run_task
+	strne	r2,  [r0]
+	ldrne	sp,  [r2]		/* and restore stack pointer */
+	
+.Lirq_exit:
+	pop	{r0, lr}		/* restore LR_user and readjust stack */
+	add	sp, sp, r0
+	
+	pop	{r0-r12}		/* and other registers */
+	rfeia	sp!			/* before returning */
+
 	
 tn_cpu_irq_isr:
 
