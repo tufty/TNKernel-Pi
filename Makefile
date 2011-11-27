@@ -4,8 +4,9 @@ AS = ${ARCH}-as
 LD = ${ARCH}-ld
 AR = ${ARCH}-ar
 OBJCOPY = ${ARCH}-objcopy
+PLATFORM = qemu
 
-CFLAGS = -O0 -std=c99 -Werror -g -DTNKERNEL_PORT_ARM
+CFLAGS = -O0 -std=c99 -Werror -g -DTNKERNEL_PORT_ARM -DPLATFORM=$(PLATFORM)
 CFLAGS_FOR_TARGET = -mcpu=arm1176jzf-s
 ASFLAGS = -g
 ASFLAGS_FOR_TARGET = -mcpu=arm1176jzf-s
@@ -13,7 +14,7 @@ LDFLAGS = -nostdlib -static --error-unresolved-symbols
 
 SYSLIBS = 
 
-MODULES := kernel bsp lambda
+MODULES := kernel bsp bsp/generic bsp/$(PLATFORM) lib lambda
 SRC_DIR := $(addprefix src/,$(MODULES))
 OBJ_DIR := obj
 

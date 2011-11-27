@@ -45,8 +45,8 @@
 
   .extern  tn_curr_run_task
   .extern  tn_next_task_to_run
-  .extern  tn_cpu_irq_handler
   .extern  tn_system_state
+  .extern  tn_cpu_identify_and_clear_irq
 
 
   /* Public functions declared in this file */
@@ -140,6 +140,7 @@ tn_sw_restore:
 *----------------------------------------------------------------------------*/
 
 /* Now reentrant, adapted from ARM example code */
+.global tn_cpu_irq_isr_reent
 tn_cpu_irq_isr_reent:
 	sub	lr, lr, #4	/* Save adjusted LR_IRQ */
 	srsdb	sp!, #SYSMODE	/* save LR_irq and SPSR_irq to system mode stack */
@@ -156,9 +157,9 @@ tn_cpu_irq_isr_reent:
 	bl	tn_cpu_identify_and_clear_irq
 	
 	cmp	r0, #0
-	cpsie	i		/* enable interrupts */
-	blne	r0		/* go handle our interrupt if we have a handler*/
-	cpsid	i		/* disable interrupts again */
+@	cpsie	i		/* enable interrupts */
+	blxne	r0		/* go handle our interrupt if we have a handler*/
+@	cpsid	i		/* disable interrupts again */
 
 	/* Decide if we need to do a context switch */
 	ldr	r0,  =tn_curr_run_task  /*  context switch ? */
@@ -187,28 +188,6 @@ tn_cpu_irq_isr_reent:
 	
 	pop	{r0-r12}		/* and other registers */
 	rfeia	sp!			/* before returning */
-
-	
-tn_cpu_irq_isr:
-
-     sub    lr,  lr, #4             /* Set lr to the actual return address */
-     stmfd  sp!, {r0-r12, lr}       /* save all registers*/
-
-     ldr    r0,  =tn_cpu_irq_handler
-     mov    lr,  pc
-     bx     r0
-
-     ldr    r0,  =tn_curr_run_task  /*  context switch ? */
-     ldr    r1,  [r0]
-     ldr    r0,  =tn_next_task_to_run
-     ldr    r2,  [r0]
-     cmp    r1,  r2                 /* if equal - return */
-     beq    exit_irq_int
-     b      tn_int_ctx_switch       /* else - goto context switch */
-
-exit_irq_int:
-
-     ldmfd  sp!, {r0-r12, pc}^      /* exit */
 
 /*---------------------------------------------------------------------------*/
 tn_int_ctx_switch:

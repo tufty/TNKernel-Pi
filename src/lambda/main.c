@@ -27,8 +27,17 @@
 /* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING  IN ANY WAY OUT OF THE USE */
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.           */
 
+#include <bsp/bsp.h>
+
 void tn_app_init(void) {
 }
 
-void main(void) {
+void timer_irq(void) {
 }
+// Finish initialising, and start up the system.
+void main(void) {
+	tn_arm_disable_interrupts();
+	platform_startup();
+	tn_start_system();
+}
+
