@@ -31,6 +31,7 @@
 
 #include "bsp.h"
 
+// Defines for the pl190 VIC emulated by qemu
 #define VIC_BASE    0x10140000
 #define IRQ_STATUS  REG32(VIC_BASE + 0x00)
 #define FIQ_STATUS  REG32(VIC_BASE + 0x04)
