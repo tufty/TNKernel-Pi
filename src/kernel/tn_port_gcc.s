@@ -156,10 +156,8 @@ tn_cpu_irq_isr_reent:
 	/* Should return handler address in r0 */
 	bl	tn_cpu_identify_and_clear_irq
 	
-	cmp	r0, #0
-@	cpsie	i		/* enable interrupts */
-	blxne	r0		/* go handle our interrupt if we have a handler*/
-@	cpsid	i		/* disable interrupts again */
+	blxne	r0		/* go handle our interrupt if we have a handler */
+				/* An interruptible handler should disable / enable irqs */
 
 	/* Decide if we need to do a context switch */
 	ldr	r0,  =tn_curr_run_task  /*  context switch ? */

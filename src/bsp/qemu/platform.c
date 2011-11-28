@@ -32,9 +32,14 @@
 void irq_timer12(void) {
 	if (sp804_masked_status(SP804_0_BASE)) {
 		sp804_clear_interrupt(SP804_0_BASE);
+		tn_arm_enable_interrupts();
 		tn_tick_int_processing();
+		tn_arm_disable_interrupts();
 	} else {
 		sp804_clear_interrupt(SP804_1_BASE);
+		tn_arm_enable_interrupts();
+		// Do something
+		tn_arm_disable_interrupts();
 	}
 }
 

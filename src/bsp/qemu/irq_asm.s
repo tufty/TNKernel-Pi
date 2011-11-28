@@ -32,6 +32,10 @@
 .equ	IRQ_BASE,	0x10140000
 
 .equ	IRQ_STATUS,	0x00
+.equ	IRQ_ENABLE,	0x10
+.equ	IRQ_ENCLEAR,	0x14
+.equ	IRQ_SOFTCLEAR,	0x1c
+.equ	IRQ_HANDLER, 	0x30
 .equ	IRQ_ACK, 	0x30
 
 
@@ -39,26 +43,19 @@
 /* Identify and acknowledge interrupt			*/
 /* In 	: nada 						*/
 /* Out	: r0 - address of interrupt handler or null 	*/
+/* Flags: zero if no handler				*/
 /* Clob	: r1-r6						*/
 /********************************************************/
 FUNC	tn_cpu_identify_and_clear_irq
 	ldr	r4, =.Lirq_base
 	ldr	r4, [r4]
 	
-	/* read the vector address */
-	ldr	r0, [r4, #IRQ_ACK]
+	/* read the vector address to indicate we're handling the interrupt */
+	ldr	r0, [r4, #IRQ_HANDLER]
 	
 	/* which IRQs are asserted? */
 	ldr	r0, [r4, #IRQ_STATUS]
 	ldr	r5, =irq_handlers
-	
-.Lid_done:
-	/* At this point : 								*/
-	/* - r0 is the remaining pending interrupt flags (may be zero due to duplicates)*/
-	/* - r4 is pointing to pending register						*/
-	/* - r5 is pointing at the handler table					*/
-	/* - if we're not in bank 0, bank 0 pending flags are already cleared		*/
-
 	mov	r6, r0				/* save flags */
 
 	stmfd  	sp!, {r2, lr}
@@ -68,11 +65,9 @@ FUNC	tn_cpu_identify_and_clear_irq
 	
 	moveq	r0, #0				/* nop, really; pipeline saver */
 	subne	r0, #1				/* subtract 1 as ffs gives us 1 <= r0 <= 32 */
-	movne	r1, #1				/* make a mask */
-	lslne	r1, r1, r0			
-	bicne	r6, r6, r1			/* clear flag */
-	strne	r6, [r4, #IRQ_ACK]		/* And save it back */
 	
+	strne	r4, [r4, #IRQ_ACK]		/* Now acknowledge the interrupt */
+		
 	ldrne	r0, [r5, r0, lsl #2]		/* load handler address */
 .Lret:	bx	lr				/* exit */
 	

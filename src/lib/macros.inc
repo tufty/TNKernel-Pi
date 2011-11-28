@@ -45,7 +45,7 @@
 /* Data synchronisation barrier */
 /* pass in a spare register */
 .macro DSB reg
-	move	\reg, 0
+	mov	\reg, #0
 	mcr	p15,0,\reg,c7,c10,4	/* Data Synchronisation barrier on ARMv6 */
 .endm
 

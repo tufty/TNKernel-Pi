@@ -29,16 +29,15 @@
 /* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING  IN ANY WAY OUT OF THE USE */
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.           */
 
+#include "bsp.h"
 #include <kernel/tn.h>
 
-typedef TN_DQUE mq_t;
+typedef struct {
+  TN_TCB * _driver_task;
+  TN_DQUE * _queue;
+} driver_t;
 
-// Initialise a pl011 device
-mq_t * pl011_init(void * base, uint32_t irq);
-
-void pl011_config()
-
-void pl011_start(mq_t * queue);
-void pl011_stop(mq_t * queue);
-
-#endif /* end of include guard: PL011_H */
+void task_loop() {
+  
+}  
+  

@@ -28,9 +28,7 @@
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.           */
 
 /* This Driver adapted from the PL011 driver provided as part of the "PREX" RTOS  */ 
-#include <lib/sysmacros.h>
-#include <lib/stdint.h>
-#include "raspberry_pi.h"
+#include "pl011.h"
 
 typedef struct {
 	mq_t * _queue;

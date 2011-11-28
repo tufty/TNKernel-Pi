@@ -31,7 +31,9 @@
 
 void irq_timer0(void) {
 	sp804_clear_interrupt(SP804_0_BASE);
+	tn_arm_enable_interrupts();
 	tn_tick_int_processing();
+	tn_arm_disable_interrupts();
 }
 
 void set_system_clock_rate() {

@@ -49,6 +49,7 @@
 /* Identify and acknowledge interrupt			*/
 /* In 	: nada 						*/
 /* Out	: r0 - address of interrupt handler or null 	*/
+/* Flags: zero if no handler				*/
 /* Clob	: r1-r6						*/
 /********************************************************/
 FUNC	tn_cpu_identify_and_clear_irq
