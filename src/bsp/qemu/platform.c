@@ -49,12 +49,10 @@ void set_system_clock_rate() {
 
 void platform_startup() {
 	set_system_clock_rate();
-	
-	uint32_t timer_rollover = 0x0000ffff;
-	
+		
 	// Set up timer 0 to generate clock ticks
-	sp804_set_bg_load_value(SP804_0_BASE, timer_rollover);
-	sp804_set_load_value(SP804_0_BASE, timer_rollover);
+	sp804_set_bg_load_value(SP804_0_BASE, TIMER_COUNT);
+	sp804_set_load_value(SP804_0_BASE, TIMER_COUNT);
 	sp804_set_mode(SP804_0_BASE, SP804_ENABLE | SP804_INT_ENBL | SP804_PERIODIC | SP804_SIZE_32 | SP804_PRE_16 | SP804_WRAP);
 	
 	irq_enable(INTERRUPT_TIMER12, &irq_timer12);

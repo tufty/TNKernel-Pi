@@ -30,25 +30,12 @@
 /* This Driver adapted from the PL011 driver provided as part of the "PREX" RTOS  */ 
 #include "pl011.h"
 
-typedef struct {
-	mq_t * _queue;
-	void * _base;
-	uint32_t * irq;
-} pl011_t;
-
-// The one pl011 uart we have.  Less machine-specific coders might not hardcode this
-pl011_t sys_pl011;
-
-mq_t * pl011_init(void * base, uint32_t irq) {
-	sys_pl011._queue = 0L;
-	sys_pl011._base = base;
-	sys_pl011._irq = irq;
-	
-}
-
+#define PL011_STACK_SIZE	256
+#define PL011_PRIORITY		1
+#define PL011_QUEUE_SIZE	80
 
 #define UART_BASE	UART0_BASE
-#define UART_IRQ	INTERRUPT_UART
+#define UART_IRQ	INTERRUPT_UART0
 #define UART_CLK	14745600
 #define BAUD_RATE	115200
 
@@ -91,149 +78,193 @@ mq_t * pl011_init(void * base, uint32_t irq) {
 #define IMSC_RX		0x10	/* Receive interrupt mask */
 #define IMSC_TX		0x20	/* Transmit interrupt mask */
 
-/* Forward functions */
-static int	pl011_init(struct driver *);
-static void	pl011_xmt_char(struct serial_port *, char);
-static char	pl011_rcv_char(struct serial_port *);
-static void	pl011_set_poll(struct serial_port *, int);
-static void	pl011_start(struct serial_port *);
-static void	pl011_stop(struct serial_port *);
 
+driver_t _pl011;
+TN_TCB _pl011_task;
+unsigned int _pl011_task_stack[PL011_STACK_SIZE];
+TN_DQUE _pl011_queue_in;
+TN_DQUE _pl011_queue_out;
+void * _pl011_fifo_in[PL011_QUEUE_SIZE];
+void * _pl011_fifo_out[PL011_QUEUE_SIZE];
 
-struct driver pl011_driver = {
-	/* name */	"pl011",
-	/* devops */	NULL,
-	/* devsz */	0,
-	/* flags */	0,
-	/* probe */	NULL,
-	/* init */	pl011_init,
-	/* detach */	NULL,
-};
+pl011_config_t _pl011_default_config = {19200,8,0,1};
 
-static struct serial_ops pl011_ops = {
-	/* xmt_char */	pl011_xmt_char,
-	/* rcv_char */	pl011_rcv_char,
-	/* set_poll */	pl011_set_poll,
-	/* start */	pl011_start,
-	/* stop */	pl011_stop,
-};
+void pl011_task_loop(void *);
+void pl011_irq(void);
 
-static struct serial_port pl011_port;
+driver_t * pl011_init() {
+	// Set up the task
+	tn_task_create(&_pl011_task, &pl011_task_loop, PL011_PRIORITY, 
+								 &_pl011_task_stack[PL011_STACK_SIZE - 1], PL011_STACK_SIZE, 0, 0);
 
+	// And the queues
+	_pl011_queue_in.id_dque = 0;
+	tn_queue_create(&_pl011_queue_in, _pl011_fifo_in, PL011_QUEUE_SIZE);
+	_pl011_queue_out.id_dque = 0;
+	tn_queue_create(&_pl011_queue_out, _pl011_fifo_in, PL011_QUEUE_SIZE);
 
-static void
-pl011_xmt_char(struct serial_port *sp, char c)
-{
-
-	while (read32(UART_FR) & FR_TXFF)
-		DMB;
-	write32(UART_DR, (uint32_t)c);
+	// Set up the driver structure
+	_pl011._opaque = 0L;
+	_pl011._queue_in = &_pl011_queue_in;
+	_pl011._queue_out = &_pl011_queue_out;
+	_pl011._sieze = &pl011_sieze;
+	_pl011._release = &pl011_release;
+	_pl011._pause = &pl011_pause;
+	_pl011._resume = &pl011_resume;
+	_pl011._configure = &pl011_configure;
+	
+	tn_task_activate(&_pl011_task);
+	
+	pl011_configure(&_pl011_task, &_pl011_default_config);
+	
+	irq_enable(INTERRUPT_UART0, &pl011_irq);
+	
+	return &_pl011;
 }
 
-static char
-pl011_rcv_char(struct serial_port *sp)
-{
-	char c;
-
-	while (read32(UART_FR) & FR_RXFE)
-		DMB;
-	c = read32(UART_DR) & 0xff;
-	return c;
+uint32_t pl011_sieze(TN_TCB * task, void * cf) {
+	if (task == &_pl011_task) {
+		return EINVAL;
+	} else if (_pl011._opaque == 0) {
+		_pl011._opaque = task;
+		return 0;
+	} else if (_pl011._opaque == task) {
+		return EEXIST;
+	}
+	return EBUSY;
 }
 
-static void
-pl011_set_poll(struct serial_port *sp, int on)
-{
+uint32_t pl011_release(TN_TCB * task, void * cf) {
+	if (task != _pl011._opaque) {
+		return EINVAL;
+	}
+	_pl011._opaque = 0L;
+	return 0;
+}
 
-	if (on) {
-		/*
-		 * Disable interrupt for polling mode.
-		 */
-		write32(UART_IMSC, 0);
-	} else
+uint32_t pl011_pause(TN_TCB * task, void * cf) {
+	if (task != _pl011._opaque) {
+		return EINVAL;
+	}
+	write32(UART_CR, 0L);
+	write32(UART_ICR, 0x07ff);
+	return 0;
+}
+
+uint32_t pl011_resume(TN_TCB * task, void * cf) {
+	if (task != _pl011._opaque) {
+		return EINVAL;
+	}
+	write32(UART_CR, (CR_RXE | CR_TXE | CR_UARTEN));
+	write32(UART_IMSC, (IMSC_RX | IMSC_TX));
+	return 0;
+}
+
+uint32_t pl011_configure(TN_TCB * task, void * cf) {
+	if (task && cf) {
+		pl011_config_t * config = (pl011_config_t*)cf;
+		
+		// Stop the uart itself
+		write32(UART_CR, 0L);
+		write32(UART_ICR, 0x07ff);
+		
+		// Set up the baud rate
+		uint32_t divider, remainder, fraction;
+		divider = UART_CLK / (16 * config->_baud);
+		remainder = UART_CLK % (16 * config->_baud);
+		fraction = (8 * remainder / config->_baud) >> 1;
+		fraction += (8 * remainder / config->_baud) & 1;
+		write32(UART_IBRD, divider);
+		write32(UART_FBRD, fraction);
+		
+		// Data bits
+		uint32_t format_config = LCRH_FEN;
+		switch (config->_data_bits) {
+			case 5:
+			break;
+			case 6:
+			format_config |= (0x01 << 5);
+			break;
+			case 7:
+			format_config |= (0x02 << 5);
+			break;
+			case 8:
+			format_config |= (0x03 << 5);
+			break;
+			default:
+			return EINVAL;
+		}
+		
+		// Parity
+		switch (config->_parity) {
+			case 0:	// No parity checking
+			break;
+			case 1:	// Even parity
+			format_config |= (0x03 << 1);
+			break;
+			case 255:	// Odd parity
+			format_config |= (0x01 << 1);
+			break;
+			default:
+			return EINVAL;
+		}
+		
+		// Stop bits
+		switch(config->_stop_bits) {
+			case 1:
+			break;
+			case 2:
+			format_config |= (0x01 << 3);
+			break;
+			default:
+			return EINVAL;
+		}
+		// Finalise the configuration
+		write32(UART_LCRH, format_config);
+		// Enable UART
+		write32(UART_CR, (CR_RXE | CR_TXE | CR_UARTEN));
+		/* Enable TX/RX interrupt */
 		write32(UART_IMSC, (IMSC_RX | IMSC_TX));
+		return 0;
+	}
+	return EPERM;
 }
 
-static int
-pl011_isr(void *arg)
-{
-	struct serial_port *sp = arg;
-	int c;
+void pl011_task_loop(void * unused) {
+	void * data;
+	while(1) {
+		// Check if we have data to send
+		if (tn_queue_receive(_pl011._queue_in, &data, TN_WAIT_INFINITE) == TERR_NO_ERR) {
+			while (read32(UART_FR) & FR_TXFF)
+				DMB;
+			write32(UART_DR, (uint32_t)data);
+		}
+	}
+}
+
+void pl011_irq(void) {
+	uint32_t c;
 	uint32_t mis;
 
 	mis = read32(UART_MIS);
 
 	if (mis & MIS_RX) {
-		/*
-		 * Receive interrupt
-		 */
+		/* Clear interrupt status */
+		write32(UART_ICR, ICR_RX);
+
+		tn_arm_enable_interrupts();
+		
 		while (read32(UART_FR) & FR_RXFE)
 			DMB;
 		do {
 			c = read32(UART_DR);
-			serial_rcv_char(sp, c);
+			tn_queue_isend_polling(_pl011._queue_out, &c);
 		} while ((read32(UART_FR) & FR_RXFE) == 0);
-
-		/* Clear interrupt status */
-		write32(UART_ICR, ICR_RX);
+		
+		tn_arm_disable_interrupts();
 	}
 	if (mis & MIS_TX) {
-		/*
-		 * Transmit interrupt
-		 */
-		serial_xmt_done(sp);
-
-		/* Clear interrupt status */
 		write32(UART_ICR, ICR_TX);
-	}
-	return 0;
+	}	
 }
 
-static void
-pl011_start(struct serial_port *sp)
-{
-	uint32_t divider, remainder, fraction;
-
-	write32(UART_CR, 0);	/* Disable everything */
-	write32(UART_ICR, 0x07ff);	/* Clear all interrupt status */
-
-	/*
-	 * Set baud rate:
-	 * IBRD = UART_CLK / (16 * BAUD_RATE)
-	 * FBRD = ROUND((64 * MOD(UART_CLK,(16 * BAUD_RATE))) / (16 * BAUD_RATE))
-	 */
-	divider = UART_CLK / (16 * BAUD_RATE);
-	remainder = UART_CLK % (16 * BAUD_RATE);
-	fraction = (8 * remainder / BAUD_RATE) >> 1;
-	fraction += (8 * remainder / BAUD_RATE) & 1;
-	write32(UART_IBRD, divider);
-	write32(UART_FBRD, fraction);
-
-	/* Set N, 8, 1, FIFO enable */
-	write32(UART_LCRH, (LCRH_WLEN8 | LCRH_FEN));
-
-	/* Enable UART */
-	write32(UART_CR, (CR_RXE | CR_TXE | CR_UARTEN));
-
-	/* Install interrupt handler */
-	sp->irq = irq_attach(UART_IRQ, IPL_COMM, 0, pl011_isr, IST_NONE, sp);
-
-	/* Enable TX/RX interrupt */
-	write32(UART_IMSC, (IMSC_RX | IMSC_TX));
-}
-
-static void
-pl011_stop(struct serial_port *sp)
-{
-
-	write32(UART_IMSC, 0);	/* Disable all interrupts */
-	write32(UART_CR, 0);	/* Disable everything */
-}
-
-static int
-pl011_init(struct driver *self)
-{
-
-	serial_attach(&pl011_ops, &pl011_port);
-	return 0;
-}

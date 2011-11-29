@@ -44,10 +44,13 @@ unsigned int * tn_stack_init(void * task_func,
 
    stk  = (unsigned int *)stack_start;      //-- Load stack pointer
 
-   *stk = ((unsigned int)task_func) & ~1;   //-- Entry Point
-   stk--;
+   if ((unsigned int)task_func & 1) //-- task func is in the THUMB mode
+      *stk = (unsigned int)0x33;    //-- CPSR - Enable both IRQ and FIQ ints + THUMB
+   else
+      *stk = (unsigned int)0x13;    //-- CPSR - Enable both IRQ and FIQ ints
+		stk--;
 
-   *stk = (unsigned int)tn_task_exit;       //-- LR  //0x14141414L
+   *stk = ((unsigned int)task_func) & ~1;   //-- Entry Point
    stk--;
 
    *stk = 0x12121212L;              //-- R12
@@ -88,10 +91,19 @@ unsigned int * tn_stack_init(void * task_func,
 
    *stk = (unsigned int)param;      //-- R0 : task's function argument
    stk--;
-   if ((unsigned int)task_func & 1) //-- task func is in the THUMB mode
-      *stk = (unsigned int)0x33;    //-- CPSR - Enable both IRQ and FIQ ints + THUMB
-   else
-      *stk = (unsigned int)0x13;    //-- CPSR - Enable both IRQ and FIQ ints
+
+	if ((unsigned int)stk & 0x00000004L) {
+		stk--;
+   *stk = (unsigned int)tn_task_exit;       //-- LR  //0x14141414L
+		stk--;
+		*stk = 0x00000004L;
+	} else {
+   *stk = (unsigned int)tn_task_exit;       //-- LR  //0x14141414L
+		stk--;
+		*stk = 0x00000000L;
+	}
+	
+
 
    return stk;
 }

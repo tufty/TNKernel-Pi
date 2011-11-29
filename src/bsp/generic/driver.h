@@ -29,11 +29,25 @@
 /* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING  IN ANY WAY OUT OF THE USE */
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.           */
 
+#include "bsp.h"
 #include <kernel/tn.h>
 
+typedef enum {
+  SIEZE_OK,
+  SIEZE_NO,
+} sieze_return_t;
+
+typedef uint32_t(*driver_func_t)(TN_TCB *, void*);
+
 typedef struct {
-  TN_TCB _task;
-  TN_DQUE _queue;
+  TN_DQUE * _queue_out;
+  TN_DQUE * _queue_in;
+  void * _opaque;
+  driver_func_t  _configure;
+  driver_func_t  _sieze;
+  driver_func_t  _release;
+  driver_func_t  _pause;
+  driver_func_t  _resume;
 } driver_t;
 
 #endif /* end of include guard: DRIVER_H */

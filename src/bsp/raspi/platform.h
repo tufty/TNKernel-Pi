@@ -31,6 +31,9 @@
 
 #include "bsp.h"
 
+#define CLOCK_RATE  700000000L
+#define TIMER_COUNT   (CLOCK_RATE / SYSTICKS_HZ)
+
 #define SP804_0_BASE  0x2000b400
 #define SP804_1_BASE  0x2000b420
 

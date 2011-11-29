@@ -31,7 +31,11 @@
 
 #include <lib/stdint.h>
 #include <lib/sysmacros.h>
+#include <lib/errno.h>
 #include <kernel/tn.h>
+
+// Systicks
+#define SYSTICKS_HZ  1000
 
 // Function entry for OS startup
 void platform_startup();

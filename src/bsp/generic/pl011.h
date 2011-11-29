@@ -29,15 +29,20 @@
 /* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING  IN ANY WAY OUT OF THE USE */
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.           */
 
-#include "bsp.h"
-#include <kernel/tn.h>
+#include "driver.h"
 
 typedef struct {
-  TN_TCB * _driver_task;
-  TN_DQUE * _queue;
-} driver_t;
+  uint32_t  _baud;
+  uint8_t _data_bits;
+  uint8_t _parity;
+  uint8_t _stop_bits;
+} pl011_config_t;
 
-void task_loop() {
-  
-}  
-  
+driver_t * pl011_init();
+uint32_t pl011_sieze(TN_TCB *, void *);
+uint32_t pl011_release(TN_TCB *, void *);
+uint32_t pl011_pause(TN_TCB *, void *);
+uint32_t pl011_resume(TN_TCB *, void *);
+uint32_t pl011_configure(TN_TCB *, void *);
+
+#endif

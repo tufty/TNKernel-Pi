@@ -58,7 +58,7 @@
 #define INTERRUPT_SPI                  (ARM_IRQ0_BASE + 16)
 #define INTERRUPT_I2SPCM               (ARM_IRQ0_BASE + 17)
 #define INTERRUPT_SDIO                 (ARM_IRQ0_BASE + 18)
-#define INTERRUPT_UART                 (ARM_IRQ0_BASE + 19)
+#define INTERRUPT_UART0                (ARM_IRQ0_BASE + 19)
 #define INTERRUPT_ARASANSDIO           (ARM_IRQ0_BASE + 20)
 
 #define ARM_IRQ1_BASE                  32

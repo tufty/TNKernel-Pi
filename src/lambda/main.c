@@ -28,12 +28,24 @@
 /* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.           */
 
 #include <bsp/bsp.h>
+#include "pl011.h"
+
+driver_t * pl011;
 
 void tn_app_init(void) {
+	pl011 = pl011_init();
+	tn_queue_send_polling(pl011->_queue_out, (void*)'(');
+	tn_queue_send_polling(pl011->_queue_out, (void*)'L');
+	tn_queue_send_polling(pl011->_queue_out, (void*)'a');
+	tn_queue_send_polling(pl011->_queue_out, (void*)'m');
+	tn_queue_send_polling(pl011->_queue_out, (void*)'b');
+	tn_queue_send_polling(pl011->_queue_out, (void*)'d');
+	tn_queue_send_polling(pl011->_queue_out, (void*)'a');
+	tn_queue_send_polling(pl011->_queue_out, (void*)'P');
+	tn_queue_send_polling(pl011->_queue_out, (void*)'i');
+	tn_queue_send_polling(pl011->_queue_out, (void*)')');
 }
 
-void timer_irq(void) {
-}
 // Finish initialising, and start up the system.
 void main(void) {
 	tn_arm_disable_interrupts();

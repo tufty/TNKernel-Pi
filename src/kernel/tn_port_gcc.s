@@ -97,6 +97,11 @@ tn_switch_context_exit:
      ldr    sp, [r1]                   /* switch to the new stack */
      str    r1, [r0]                   /* set new current running task tcb address */
 
+	pop	{r0, lr}
+	add	sp, sp, r0
+	pop	{r0-r12}
+	rfeia	sp!
+
      ldmfd  sp!, {r0}
      msr    SPSR_cxsf, r0
      ldmfd  sp!, {r0-r12,lr,pc}^
@@ -105,18 +110,20 @@ tn_switch_context_exit:
 *
 *----------------------------------------------------------------------------*/
 tn_switch_context:
+	/* Get clever here to save CPSR in the right place */
+	push	{r0}			/* Placeholder for cpsr */
+	push	{lr}			/* Now push stuff we really need */
+	push	{r0-r12}	
 
-     stmfd  sp!, {lr}                   /* Save return address */
-     stmfd  sp!, {r0-r12,lr}            /* Save curr task registers */
+	mrs	r0, cpsr
+	str	r0, [sp, #56]		/* Save cpsr where we need it */
+	orr	r0,  r0, #NOINT		/* Disable Interrupts */
+	msr	CPSR_c, r0
+	
+	and	r0, sp, #4	/* align the stack and save adjustment with LR_user */
+	sub	sp, sp, r0
+	push	{r0, lr}
 
-     mrs    r0,  cpsr
-     tst    LR,  #1                     /* from Thumb mode ?    */
-     orrne  R0,  R0, #0x20              /* set the THUMB bit */
-     stmfd  sp!, {r0}                   /* Save current CPSR */
-
-     mrs    r0,  cpsr
-     orr    r0,  r0,   #NOINT           /* Disable Int */
-     msr    CPSR_c, r0
 
      ldr    r1,  =tn_curr_run_task
      ldr    r2,  [r1]
@@ -130,6 +137,13 @@ tn_switch_context:
      str    r0,  [r1]            /* tn_curr_run_task = tn_next_task_to_run */
 
 tn_sw_restore:
+	pop	{r0, lr}
+	add	sp, sp, r0
+	pop	{r0-r12}
+	rfeia	sp!
+	
+	
+
 
      ldmfd  sp!, {r0}
      msr    SPSR_cxsf, r0
@@ -283,7 +297,7 @@ tn_inside_irq:
 
      mrs    r0, cpsr
      and    r0, r0, #MODEMASK
-     cmp    r0, #IRQMODE
+     cmp    r0, #SYSMODE
      bne    tn_inside_int_1
      bx     lr
 
