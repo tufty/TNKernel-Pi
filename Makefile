@@ -5,10 +5,13 @@ LD = ${ARCH}-ld
 AR = ${ARCH}-ar
 OBJCOPY = ${ARCH}-objcopy
 PLATFORM = qemu
+#PLATFORM = raspi
 
-CFLAGS = -O0 -std=c99 -Werror -g -DTNKERNEL_PORT_ARM -DPLATFORM=$(PLATFORM)
+CFLAGS = -O3 -std=c99 -Werror -DTNKERNEL_PORT_ARM -DPLATFORM=$(PLATFORM)
+#CFLAGS = -O0 -g -std=c99 -Werror -DTNKERNEL_PORT_ARM -DPLATFORM=$(PLATFORM)
 CFLAGS_FOR_TARGET = -mcpu=arm1176jzf-s
-ASFLAGS = -g
+#ASFLAGS = -g
+ASFLAGS =
 ASFLAGS_FOR_TARGET = -mcpu=arm1176jzf-s
 LDFLAGS = -nostdlib -static --error-unresolved-symbols
 

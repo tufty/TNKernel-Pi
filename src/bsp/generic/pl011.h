@@ -45,4 +45,8 @@ uint32_t pl011_pause(TN_TCB *, void *);
 uint32_t pl011_resume(TN_TCB *, void *);
 uint32_t pl011_configure(TN_TCB *, void *);
 
+void pl011_write(uint32_t utf8);
+void pl011_write_lowlevel(uint8_t c);
+
+
 #endif

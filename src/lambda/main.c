@@ -32,18 +32,24 @@
 
 driver_t * pl011;
 
+TN_TCB send_task;
+unsigned int send_task_stack[256];
+
+void send_task_do(void * foo);
+
 void tn_app_init(void) {
 	pl011 = pl011_init();
-	tn_queue_send_polling(pl011->_queue_out, (void*)'(');
-	tn_queue_send_polling(pl011->_queue_out, (void*)'L');
-	tn_queue_send_polling(pl011->_queue_out, (void*)'a');
-	tn_queue_send_polling(pl011->_queue_out, (void*)'m');
-	tn_queue_send_polling(pl011->_queue_out, (void*)'b');
-	tn_queue_send_polling(pl011->_queue_out, (void*)'d');
-	tn_queue_send_polling(pl011->_queue_out, (void*)'a');
-	tn_queue_send_polling(pl011->_queue_out, (void*)'P');
-	tn_queue_send_polling(pl011->_queue_out, (void*)'i');
-	tn_queue_send_polling(pl011->_queue_out, (void*)')');
+	tn_task_create(&send_task, &send_task_do, 2, &(send_task_stack[255]), 256, 0, TN_TASK_START_ON_CREATION);
+}
+
+void send_task_do(void * foo) {
+	pl011_write('(');
+	pl011_write(0xcebb); // UTF-8 λ
+	pl011_write(0xcf80); // UTF-8 π
+	pl011_write(')');
+	pl011_write(' ');
+
+	tn_task_exit(TN_EXIT_AND_DELETE_TASK);
 }
 
 // Finish initialising, and start up the system.

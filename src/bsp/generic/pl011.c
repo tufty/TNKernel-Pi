@@ -242,6 +242,28 @@ void pl011_task_loop(void * unused) {
 	}
 }
 
+void pl011_write(uint32_t utf8) {
+	// Find number of leading zeros
+	uint32_t zerocount = 0;
+	__asm__ __volatile__ ("clz %[c], %[u]" : [c] "=r" (zerocount) : [u] "r" (utf8));
+	switch (zerocount >> 3) {
+		case 0:
+		pl011_write_lowlevel(utf8 >> 24);
+		case 1:
+		pl011_write_lowlevel((utf8 >> 16) & 0x000000ff);
+		case 2:
+		pl011_write_lowlevel((utf8 >> 8) & 0x000000ff);
+		default:
+		pl011_write_lowlevel(utf8 & 0x000000ff);
+	}
+}
+
+void pl011_write_lowlevel(uint8_t c) {
+	while (read32(UART_FR) & FR_TXFF)
+		DMB;
+	write32(UART_DR, (uint32_t)c);
+}
+
 void pl011_irq(void) {
 	uint32_t c;
 	uint32_t mis;
