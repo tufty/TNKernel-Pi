@@ -87,7 +87,7 @@ FUNC	_reset
 	bic    r0, r0, #MODE_BITS		/* Clear the mode bits */
 	orr    r0, r0, #SVC_MODE		/* Set Supervisor mode bits */
 	msr    cpsr_c, r0			/* Change the mode */
-	mov    sp, r2				/* End of stack */
+	mov    sp, r1				/* End of stack */
 	
 	/* And finally subtract Kernel stack size to get final __memtop */
 	ldr	r2, __kern_stack_size
